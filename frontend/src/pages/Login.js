@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { useNavigate, Link } from 'react-router-dom';
+import { toast } from 'react-toastify';
+import { GoogleLogin } from '@react-oauth/google';
+import axios from '../utils/axios';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -8,7 +10,7 @@ const Login = () => {
     email: '',
     password: ''
   });
-  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     setFormData({
@@ -19,15 +21,32 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setLoading(true);
 
     try {
-      const response = await axios.post('http://localhost:5001/api/auth/login', formData);
+      const response = await axios.post('/auth/login', formData);
       localStorage.setItem('token', response.data.token);
-      localStorage.setItem('userId', response.data.user.id);
-      navigate('/chatroom');
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+      toast.success('Login successful!');
+      navigate('/');
     } catch (err) {
-      setError(err.response?.data?.message || 'An error occurred');
+      toast.error(err.response?.data?.message || 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    try {
+      const response = await axios.post('/auth/google', {
+        token: credentialResponse.credential
+      });
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+      toast.success('Login successful!');
+      navigate('/');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'An error occurred');
     }
   };
 
@@ -40,11 +59,6 @@ const Login = () => {
           </h2>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-              <span className="block sm:inline">{error}</span>
-            </div>
-          )}
           <div className="rounded-md shadow-sm -space-y-px">
             <div>
               <label htmlFor="email" className="sr-only">Email address</label>
@@ -77,21 +91,56 @@ const Login = () => {
           <div>
             <button
               type="submit"
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              disabled={loading}
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
             >
-              Sign in
+              {loading ? 'Signing in...' : 'Sign in'}
             </button>
           </div>
+
+          <div className="flex items-center justify-center">
+            <div className="text-sm">
+              <Link
+                to="/forgot-password"
+                className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
+              >
+                Forgot your password?
+              </Link>
+            </div>
+          </div>
+
+          <div className="mt-6">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300 dark:border-gray-700"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400">
+                  Or continue with
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={() => {
+                  toast.error('Google login failed');
+                }}
+                useOneTap
+              />
+            </div>
+          </div>
+
           <div className="text-center">
             <p className="text-sm text-gray-600 dark:text-gray-400">
               Don't have an account?{' '}
-              <button
-                type="button"
-                onClick={() => navigate('/signup')}
+              <Link
+                to="/signup"
                 className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
               >
                 Sign up
-              </button>
+              </Link>
             </p>
           </div>
         </form>

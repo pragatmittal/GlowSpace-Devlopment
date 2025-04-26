@@ -1,11 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middleware/auth.middleware');
 const User = require('../models/User.model');
 
-router.get('/profile', protect, async (req, res, next) => {
+router.get('/profile', async (req, res, next) => {
   try {
-    const user = await User.findById(req.user.id).select('-password');
+    const user = await User.findById(req.query.id).select('-password');
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -15,9 +14,9 @@ router.get('/profile', protect, async (req, res, next) => {
   }
 });
 
-router.put('/profile', protect, async (req, res, next) => {
+router.put('/profile', async (req, res, next) => {
   try {
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.query.id);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -27,7 +26,7 @@ router.put('/profile', protect, async (req, res, next) => {
     if (username || email) {
       const existingUser = await User.findOne({
         $and: [
-          { _id: { $ne: req.user.id } },
+          { _id: { $ne: req.query.id } },
           { $or: [
             username ? { username: username } : { _id: null },
             email ? { email: email } : { _id: null }
