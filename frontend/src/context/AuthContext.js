@@ -6,6 +6,7 @@ const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     // Check if user is logged in on mount
@@ -13,13 +14,21 @@ export const AuthProvider = ({ children }) => {
     const storedUser = localStorage.getItem('user');
     
     if (token && storedUser) {
-      setUser(JSON.parse(storedUser));
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+      } catch (err) {
+        console.error('Error parsing stored user:', err);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      }
     }
     setLoading(false);
   }, []);
 
   const login = async (email, password) => {
     try {
+      setError(null);
       const response = await axios.post('/auth/login', { email, password });
       const { token, user } = response.data;
       
@@ -29,15 +38,33 @@ export const AuthProvider = ({ children }) => {
       
       return { success: true };
     } catch (error) {
+      const message = error.response?.data?.message || 'Login failed';
+      setError(message);
       return { 
         success: false, 
-        message: error.response?.data?.message || 'Login failed' 
+        message 
+      };
+    }
+  };
+
+  const register = async (userData) => {
+    try {
+      setError(null);
+      const response = await axios.post('/auth/register', userData);
+      return { success: true, message: response.data.message };
+    } catch (error) {
+      const message = error.response?.data?.message || 'Registration failed';
+      setError(message);
+      return { 
+        success: false, 
+        message 
       };
     }
   };
 
   const googleLogin = async (token) => {
     try {
+      setError(null);
       const response = await axios.post('/auth/google', { token });
       const { token: jwtToken, user } = response.data;
       
@@ -47,9 +74,11 @@ export const AuthProvider = ({ children }) => {
       
       return { success: true };
     } catch (error) {
+      const message = error.response?.data?.message || 'Google login failed';
+      setError(message);
       return { 
         success: false, 
-        message: error.response?.data?.message || 'Google login failed' 
+        message 
       };
     }
   };
@@ -58,12 +87,15 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(null);
+    setError(null);
   };
 
   const value = {
     user,
     loading,
+    error,
     login,
+    register,
     googleLogin,
     logout,
     isAuthenticated: !!user

@@ -5,7 +5,8 @@ const {
   login,
   googleLogin,
   forgotPassword,
-  resetPassword
+  resetPassword,
+  validateResetToken
 } = require('../controllers/auth.controller');
 
 // Register route
@@ -19,6 +20,9 @@ router.post('/google', googleLogin);
 
 // Forgot password route
 router.post('/forgot-password', forgotPassword);
+
+// Validate reset token route
+router.get('/validate-reset-token/:token', validateResetToken);
 
 // Reset password route
 router.post('/reset-password', resetPassword);

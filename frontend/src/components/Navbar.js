@@ -1,12 +1,30 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
 
 const Navbar = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, logout, isAuthenticated } = useAuth();
   const [showDropdown, setShowDropdown] = useState(false);
+
+  // Close dropdown when route changes
+  useEffect(() => {
+    setShowDropdown(false);
+  }, [location.pathname]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showDropdown && !event.target.closest('.dropdown-container')) {
+        setShowDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showDropdown]);
 
   const handleLogout = () => {
     logout();
@@ -55,18 +73,19 @@ const Navbar = () => {
 
           <div className="flex items-center">
             {isAuthenticated ? (
-              <div className="relative">
+              <div className="relative dropdown-container">
                 <button
                   onClick={() => setShowDropdown(!showDropdown)}
                   className="flex items-center space-x-2 focus:outline-none"
+                  aria-label="User menu"
                 >
                   <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center text-white">
-                    {user?.name?.charAt(0).toUpperCase()}
+                    {user?.name?.charAt(0).toUpperCase() || 'U'}
                   </div>
                 </button>
 
                 {showDropdown && (
-                  <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white dark:bg-gray-700 ring-1 ring-black ring-opacity-5">
+                  <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white dark:bg-gray-700 ring-1 ring-black ring-opacity-5 z-50">
                     <div className="py-1" role="menu" aria-orientation="vertical">
                       <Link
                         to="/dashboard"

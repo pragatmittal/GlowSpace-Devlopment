@@ -1,16 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { GoogleLogin } from '@react-oauth/google';
-import axios from '../utils/axios';
+import { useAuth } from '../context/AuthContext';
+
+// Google Client ID
+const GOOGLE_CLIENT_ID = '187086439813-podm1j4k6685oj0n3i2kcnecgup74c2b.apps.googleusercontent.com';
 
 const Login = () => {
   const navigate = useNavigate();
+  const { login, googleLogin } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
   const [loading, setLoading] = useState(false);
+  const [googleClientId, setGoogleClientId] = useState('');
+
+  useEffect(() => {
+    // Get Google Client ID from environment variables or use fallback
+    const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID;
+    setGoogleClientId(clientId);
+  }, []);
 
   const handleChange = (e) => {
     setFormData({
@@ -24,13 +35,15 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const response = await axios.post('/auth/login', formData);
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
-      toast.success('Login successful!');
-      navigate('/');
+      const result = await login(formData.email, formData.password);
+      if (result.success) {
+        toast.success('Login successful!');
+        navigate('/');
+      } else {
+        toast.error(result.message);
+      }
     } catch (err) {
-      toast.error(err.response?.data?.message || 'An error occurred');
+      toast.error('An error occurred');
     } finally {
       setLoading(false);
     }
@@ -38,16 +51,21 @@ const Login = () => {
 
   const handleGoogleSuccess = async (credentialResponse) => {
     try {
-      const response = await axios.post('/auth/google', {
-        token: credentialResponse.credential
-      });
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
-      toast.success('Login successful!');
-      navigate('/');
+      const result = await googleLogin(credentialResponse.credential);
+      if (result.success) {
+        toast.success('Login successful!');
+        navigate('/');
+      } else {
+        toast.error(result.message);
+      }
     } catch (err) {
-      toast.error(err.response?.data?.message || 'An error occurred');
+      toast.error('An error occurred');
     }
+  };
+
+  const handleGoogleError = (error) => {
+    console.error('Google login error:', error);
+    toast.error('Google login failed. Please try again.');
   };
 
   return (
@@ -121,13 +139,17 @@ const Login = () => {
               </div>
             </div>
 
-            <div className="mt-6">
+            <div className="mt-6 flex justify-center">
               <GoogleLogin
                 onSuccess={handleGoogleSuccess}
-                onError={() => {
-                  toast.error('Google login failed');
-                }}
+                onError={handleGoogleError}
                 useOneTap
+                theme="filled_blue"
+                shape="rectangular"
+                text="signin_with"
+                size="large"
+                width="100%"
+                context="signin"
               />
             </div>
           </div>

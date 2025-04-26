@@ -18,6 +18,14 @@ exports.register = async (req, res, next) => {
   try {
     const { name, email, password } = req.body;
 
+    // Validate input
+    if (!name || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide all required fields'
+      });
+    }
+
     // Check if user exists
     const userExists = await User.findOne({ email });
     if (userExists) {
@@ -66,6 +74,14 @@ exports.login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
+    // Validate input
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide email and password'
+      });
+    }
+
     // Check if user exists
     const user = await User.findOne({ email }).select('+password');
     if (!user) {
@@ -76,8 +92,15 @@ exports.login = async (req, res, next) => {
     }
 
     // Check if password matches
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
+    try {
+      const isMatch = await user.comparePassword(password);
+      if (!isMatch) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid credentials'
+        });
+      }
+    } catch (error) {
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials'
@@ -107,6 +130,14 @@ exports.login = async (req, res, next) => {
 exports.googleLogin = async (req, res, next) => {
   try {
     const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: 'Google token is required'
+      });
+    }
+
     const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
     const ticket = await client.verifyIdToken({
@@ -173,6 +204,13 @@ exports.forgotPassword = async (req, res, next) => {
   try {
     const { email } = req.body;
 
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is required'
+      });
+    }
+
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(404).json({
@@ -234,6 +272,13 @@ exports.resetPassword = async (req, res, next) => {
   try {
     const { token, password } = req.body;
 
+    if (!token || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Token and password are required'
+      });
+    }
+
     // Hash token
     const resetPasswordToken = crypto
       .createHash('sha256')
@@ -277,6 +322,47 @@ exports.resetPassword = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: 'Password reset successful'
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Validate reset token
+// @route   GET /api/auth/validate-reset-token/:token
+// @access  Public
+exports.validateResetToken = async (req, res, next) => {
+  try {
+    const { token } = req.params;
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: 'Token is required'
+      });
+    }
+
+    // Hash token
+    const resetPasswordToken = crypto
+      .createHash('sha256')
+      .update(token)
+      .digest('hex');
+
+    const user = await User.findOne({
+      resetPasswordToken,
+      resetPasswordExpire: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired token'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Token is valid'
     });
   } catch (err) {
     next(err);
